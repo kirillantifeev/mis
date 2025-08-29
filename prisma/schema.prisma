@@ -1,0 +1,112 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Gender {
+  MALE
+  REMALE
+  OTHER
+}
+
+enum Type {
+  PRIMARY   @map("0")
+  FOLLOW_UP @map("1")
+}
+
+enum StatusName {
+  NEW
+  READY
+  INPROCESS
+  DONE
+}
+
+model Patients {
+  id         String     @id @default(uuid()) @unique
+  phone      String     @unique
+  name       String
+  surname    String
+  patronymic String?
+  gender     Gender
+  task       Tasks[]
+  createdAt  DateTime   @default(now()) @map("created_at")
+  schedule   Schedule[]
+
+  @@map("patients")
+}
+
+model Doctors {
+  id         String     @id @default(uuid()) @unique
+  name       String
+  surname    String
+  patronymic String?
+  spec       String
+  price      Float
+  createdAt  DateTime   @default(now()) @map("created_at")
+  schedule   Schedule[]
+
+  @@map("doctors")
+}
+
+model Schedule {
+  id         String    @id @default(uuid()) @unique
+  doctor     Doctors   @relation(fields: [doctor_id], references: [id])
+  doctor_id  String
+  date       DateTime  @db.Date
+  time_from  DateTime
+  time_to    DateTime
+  is_free    Boolean   @default(true)
+  patient    Patients? @relation(fields: [patient_id], references: [id])
+  patient_id String?
+  type       Type?
+  addTask    Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  @@map("schedule")
+}
+
+model Tasks {
+  id          Int       @id @default(autoincrement()) @unique
+  users       Patients? @relation(fields: [phone], references: [phone])
+  phone       String?
+  body        Json
+  calls       Calls[]
+  status      Statuses  @relation(fields: [statusId], references: [id])
+  statusId    Int
+  callAttempt Int       @default(0)
+  maxAttempts Int       @default(3)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@map("tasks")
+}
+
+model Statuses {
+  id        Int        @id @default(autoincrement()) @unique
+  name      StatusName @default(NEW)
+  tasks     Tasks[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("status")
+}
+
+model Calls {
+  id          Int       @id @default(autoincrement()) @unique
+  phone       String
+  callData    Json?
+  task        Tasks?    @relation(fields: [taskId], references: [id])
+  taskId      Int
+  callTaskId  Int       @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@map("calls")
+}
