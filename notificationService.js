@@ -188,6 +188,7 @@ export class NotificationService {
                         id: {in: taskIds}
                     },
                     data: {
+
                         statusId: 3,
                         callAttempt: {increment: 1}
                     }
@@ -223,16 +224,17 @@ export class NotificationService {
             //     }
             // })
 
-            const tasksInProcess = await prisma.calls.findMany({
+            const tasks = await prisma.calls.findMany({
                 where: {
                     task: {
                         statusId: 3
-                    }
+                    },
                 },
                 include: {
                     task: true
                 }
             });
+
 
             // const tasksInProcess = await prisma.tasks.findMany({
             //     where: {
@@ -243,11 +245,16 @@ export class NotificationService {
             //     }
             // })
 
+            const tasksInProcess = tasks.filter(task => task.callData === null);
+
             if (tasksInProcess.length !== 0) {
+
 
                 const idTasksInProcess = tasksInProcess.map(el => {
                     return el.callTaskId
                 });
+
+                console.log('Запросы ID по звонкам', idTasksInProcess)
 
                 const resultsCallsApi = await axios.post(`${urlApi}/calltask/result-bulk`, {
                     project_id: projectId,
@@ -273,30 +280,43 @@ export class NotificationService {
                         ...value
                     }));
 
+                console.log('Все звонки', callsApiData)
+
                 const callsError = callsApiData.filter((value) => value.errors);
 
                 const callsWithoutErrors = callsApiData.filter((value) => !value.errors);
 
-                console.log('Звонки пришли', callsWithoutErrors)
+                const callsDone = callsWithoutErrors.filter((call) => call.goals.length !== 0);
+                const callsNoConnection = callsWithoutErrors.filter(call => call.goals.length === 0);
 
-
-                const callsDone = callsWithoutErrors.filter((call) => call.status === 21 || call.status === 23 || call.status === 31 || call.status === 32);
-                const callsNoConnection = callsWithoutErrors.filter(call => call.status !== 21 && call.status !== 23 && call.status !== 31 && call.status !== 32)
+                console.log('Ошибочные', callsError)
+                console.log('Выполненные задачи', callsDone)
+                console.log('Еще не выполненные', callsNoConnection)
 
                 let callsUpdate = null;
 
                 await prisma.$transaction(async (tx) => {
                     for (const call of callsNoConnection) {
-                        // 1. Находим call и включаем task
-                        const callWithTask = await tx.calls.findUnique({
+                        // const callWithTask = await tx.calls.findUnique({
+                        //     where: {
+                        //         callTaskId: Number(call.id)
+                        //     },
+                        //     include: {
+                        //         task: true
+                        //     }
+                        // });
+
+                        const callWithTask = await tx.calls.update({
                             where: {
                                 callTaskId: Number(call.id)
+                            },
+                            data: {
+                                callData: JSON.stringify(call.data)
                             },
                             include: {
                                 task: true
                             }
-                        });
-
+                        })
 
                         if (callWithTask?.task) {
                             await tx.tasks.update({
@@ -321,6 +341,7 @@ export class NotificationService {
                             }
                         })
                     );
+
                 });
 
                 if (!callsUpdate) {
@@ -350,7 +371,8 @@ export class NotificationService {
 
                 await prisma.tasks.updateMany({
                     where: {
-                        callAttempt: 3
+                        callAttempt: 3,
+                        statusId: 2
                     },
                     data: {
                         statusId: 4,
