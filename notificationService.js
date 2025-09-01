@@ -280,7 +280,7 @@ export class NotificationService {
                 console.log('Звонки пришли', callsWithoutErrors)
 
 
-                const callsDone = callsWithoutErrors.filter((call) => call.status === 21 && call.status === 23 && call.status === 31 && call.status === 32);
+                const callsDone = callsWithoutErrors.filter((call) => call.status === 21 || call.status === 23 || call.status === 31 || call.status === 32);
                 const callsNoConnection = callsWithoutErrors.filter(call => call.status !== 21 && call.status !== 23 && call.status !== 31 && call.status !== 32)
 
                 let callsUpdate = null;
